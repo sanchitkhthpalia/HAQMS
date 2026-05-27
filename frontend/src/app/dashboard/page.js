@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/common/Navbar';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { 
   Users, CalendarDays, Activity, Search, Sparkles, UserPlus, 
   Trash2, ClipboardList, TrendingUp, DollarSign, Award, Clock,
@@ -21,10 +22,8 @@ export default function Dashboard() {
     }
   }, [user]);
 
-  if (!user) return null;
-
   // Global State
-  const [activeTab, setActiveTab] = useState(user.role === 'ADMIN' ? 'reports' : user.role === 'RECEPTIONIST' ? 'patients' : 'appointments');
+  const [activeTab, setActiveTab] = useState(user?.role === 'ADMIN' ? 'reports' : user?.role === 'RECEPTIONIST' ? 'patients' : 'appointments');
 
   // ==========================================
   // STATE FOR RECEPTIONIST WORKFLOWS
@@ -32,6 +31,15 @@ export default function Dashboard() {
   const [patients, setPatients] = useState([]);
   const [patientsLoading, setPatientsLoading] = useState(false);
   const [patientSearch, setPatientSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // Debounce search query to prevent excessive API requests
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(patientSearch);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [patientSearch]);
   const [patientGender, setPatientGender] = useState('All');
   const [patientsPagination, setPatientsPagination] = useState({ page: 1, totalPages: 1 });
   
@@ -72,11 +80,11 @@ export default function Dashboard() {
   // ==========================================
   
   // Fetch Patients List
-  const fetchPatients = async (page = 1) => {
+  const fetchPatients = async (page = 1, searchQuery = debouncedSearch) => {
     setPatientsLoading(true);
     try {
-      // Inefficient memory pagination called from client
-      const res = await fetch(`${API_BASE_URL}/patients?page=${page}&limit=5&search=${patientSearch}&gender=${patientGender}`, {
+      // Fetch patients using database pagination and filtered search
+      const res = await fetch(`${API_BASE_URL}/patients?page=${page}&limit=5&search=${searchQuery}&gender=${patientGender}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -95,12 +103,12 @@ export default function Dashboard() {
     }
   };
 
-  // Trigger Patient List Fetch (Every keystroke trigger re-renders parent! - Performance bug)
+  // Trigger Patient List Fetch using debounced search and gender (minimizing re-fetches)
   useEffect(() => {
-    if (user.role === 'RECEPTIONIST' || user.role === 'ADMIN') {
-      fetchPatients(1);
+    if (user?.role === 'RECEPTIONIST' || user?.role === 'ADMIN') {
+      fetchPatients(1, debouncedSearch);
     }
-  }, [patientSearch, patientGender]);
+  }, [debouncedSearch, patientGender]);
 
   // Fetch Doctors for booking drop-down
   const fetchDoctorsDropdown = async () => {
@@ -253,10 +261,10 @@ export default function Dashboard() {
   // DOCTOR WORKFLOW FUNCTIONS
   // ==========================================
   const fetchDoctorWorklist = async () => {
-    if (user.role !== 'DOCTOR') return;
+    if (user?.role !== 'DOCTOR') return;
     try {
       // Find matching doctor from doctors dropdown using user ID link
-      const matchedDoc = doctorsList.find(d => d.userId === user.id);
+      const matchedDoc = doctorsList.find(d => d.userId === user?.id);
       if (!matchedDoc) return;
 
       // 1. Fetch appointments for this doctor (N+1 database queries triggers inside server)
@@ -281,7 +289,7 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    if (user.role === 'DOCTOR' && doctorsList.length > 0) {
+    if (user?.role === 'DOCTOR' && doctorsList.length > 0) {
       fetchDoctorWorklist();
     }
   }, [doctorsList]);
@@ -363,6 +371,8 @@ export default function Dashboard() {
       console.error(e);
     }
   };
+
+  if (!user) return null;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -842,7 +852,7 @@ export default function Dashboard() {
                               <>
                                 <button
                                   onClick={() => {
-                                    const matchedDoc = doctorsList.find(d => d.userId === user.id);
+                                    const matchedDoc = doctorsList.find(d => d.userId === user?.id);
                                     handleQueueCheckin(app.patientId, matchedDoc.id, app.id);
                                   }}
                                   className="text-xxs px-2.5 py-1 rounded bg-teal-500/10 text-teal-600 dark:text-teal-400 font-extrabold hover:bg-teal-500 hover:text-white transition-colors"
@@ -889,12 +899,9 @@ export default function Dashboard() {
                 <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-xs space-y-2">
                   <h4 className="font-bold text-slate-400 uppercase tracking-wider">Clinical Background Information</h4>
                   
-                  {/* FRONTEND CRASH BUG:
-                      Assuming medicalHistory is always populated. Accesses a method on a nullable property
-                      without optional chaining! If medicalHistory is null (which is the case for Batman, Clark Kent, etc.),
-                      this code throws: "Cannot read properties of null (reading 'toUpperCase')" and crashes the app! */}
+                  {/* Fixed clinical history crash with optional chaining and nullish coalescing */}
                   <p className="text-slate-700 dark:text-slate-300 leading-5 text-sm font-semibold">
-                    {selectedPatientHistory.medicalHistory.toUpperCase()}
+                    {(selectedPatientHistory.medicalHistory?.toUpperCase()) ?? "No record available"}
                   </p>
                 </div>
 

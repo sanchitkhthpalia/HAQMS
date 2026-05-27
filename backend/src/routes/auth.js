@@ -10,8 +10,8 @@ const JWT_SECRET = process.env.JWT_SECRET || 'my-super-secret-secret-key-12345!!
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
-    // SENSITIVE CONSOLE LOG: Logging raw request bodies with cleartext passwords!
-    console.log('[DEBUG] Registering user with payload:', JSON.stringify(req.body));
+    // Log registration attempt
+    console.log(`[DEBUG] Registering user: ${req.body.email}`);
 
     const { email, password, name, role } = req.body;
 
@@ -53,8 +53,8 @@ router.post('/register', async (req, res) => {
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
   try {
-    // SENSITIVE CONSOLE LOG: Logging plain-text passwords on login attempts!
-    console.log(`[AUTH] Login attempt for email: ${req.body.email} with password: ${req.body.password}`);
+    // Log login attempt
+    console.log(`[AUTH] Login attempt for email: ${req.body.email}`);
 
     const { email, password } = req.body;
 
@@ -72,11 +72,11 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Weak JWT token generation: signs token with no expiration limit or massive expiry (365 days)
+    // JWT token generation: signs token with a secure expiration limit of 8h
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role, name: user.name },
       JWT_SECRET,
-      { expiresIn: '365d' }
+      { expiresIn: '8h' }
     );
 
     // INCONSISTENT API RESPONSE format: Returns a nested success payload
