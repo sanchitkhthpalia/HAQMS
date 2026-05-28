@@ -183,6 +183,10 @@ Calling `.toUpperCase()` directly on nullable fields crashed the doctor panel wh
 
 Also imported `Link` from `next/link`. The original code was trying to render router links without importing the component.
 
+**Hardcoded API URL** (`frontend/src/context/AuthContext.js`, `frontend/src/app/queue/page.js`)
+
+The backend API URL was hardcoded to `localhost` in multiple client files, making production build routing impossible. Changed these to read from `process.env.NEXT_PUBLIC_API_URL` dynamically with a localhost fallback for dev mode.
+
 ---
 
 ## New Feature — Patient History Timeline

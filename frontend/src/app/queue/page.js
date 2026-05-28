@@ -12,8 +12,8 @@ export default function QueueMonitor() {
   // Duplicated config state just to add minor code smell
   const [refreshCount, setRefreshCount] = useState(0);
 
-  // HARDCODED API BASE URL: Duplicated from AuthContext (code duplication smell)
-  const API_BASE_URL = 'http://localhost:5000/api';
+  // read from environment variables to support production/staging environments
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
   const fetchQueueData = async () => {
     try {
